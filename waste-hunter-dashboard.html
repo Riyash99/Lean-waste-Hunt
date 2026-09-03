@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lean Waste Hunter — Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--blue:#1261a0;--green:#2e8b57;--dark:#17324d;--red:#d9534f;--gold:#f2b84b}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef4f9;color:var(--dark)}
+.container{max-width:1150px;margin:auto;padding:26px 18px}
+h1{margin:0 0 4px;font-size:30px}.subtitle{color:#587087;margin-bottom:20px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat{background:white;border-radius:14px;padding:18px;box-shadow:0 6px 18px rgba(23,50,77,.08)}
+.stat .num{font-size:30px;font-weight:900;color:var(--blue)}.stat .lbl{color:#5e7285;font-size:13px;margin-top:4px}
+.panel{background:white;border-radius:16px;padding:22px;box-shadow:0 6px 18px rgba(23,50,77,.08);margin-bottom:22px}
+.panel h2{margin-top:0;font-size:19px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+input[type=text]{padding:10px 14px;border-radius:10px;border:1px solid #dbe6ef;font-size:14px;flex:1;min-width:200px}
+button{border:0;border-radius:10px;padding:10px 16px;font-weight:bold;cursor:pointer;background:var(--blue);color:white;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px;background:#f4f8fb;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{background:#e9f2f9}
+td{padding:10px;border-bottom:1px solid #eef2f6}
+tr.team-row{cursor:pointer}
+tr.team-row:hover{background:#f7fbff}
+.pill{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold}
+.pill.pass{background:#eaf8f0;color:#205d3d}.pill.fail{background:#fff0ef;color:#8d302d}
+.attempts-row td{background:#fbfdff;padding:0}
+.attempts-inner{padding:10px 20px 16px}
+.attempts-inner table{font-size:13px}
+.attempts-inner th{background:#f0f5f9}
+.muted{color:#8296a8;font-size:13px}
+.hidden{display:none}
+.err{background:#fff0ef;color:#8d302d;padding:14px;border-radius:10px;margin-bottom:16px}
+@media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Lean Waste Hunter — Dashboard</h1>
+  <div class="subtitle">Team registrations, scores and attempt history</div>
+
+  <div id="errBox" class="err hidden"></div>
+
+  <div class="cards">
+    <div class="stat"><div class="num" id="statTeams">–</div><div class="lbl">Teams registered</div></div>
+    <div class="stat"><div class="num" id="statPassed">–</div><div class="lbl">Teams passed</div></div>
+    <div class="stat"><div class="num" id="statNotPassed">–</div><div class="lbl">Not passed yet</div></div>
+    <div class="stat"><div class="num" id="statAttempts">–</div><div class="lbl">Total attempts played</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Teams</h2>
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search by team name…" oninput="renderTeams()">
+      <button onclick="exportCsv()">Export CSV</button>
+      <button onclick="loadData()">Refresh</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th onclick="setSort('teamName')">Team ▾</th>
+          <th onclick="setSort('attempts')">Attempts ▾</th>
+          <th onclick="setSort('bestScore')">Best Score ▾</th>
+          <th onclick="setSort('passed')">Status ▾</th>
+          <th onclick="setSort('lastPlayedAt')">Last Played ▾</th>
+        </tr>
+      </thead>
+      <tbody id="teamsBody"></tbody>
+    </table>
+    <p class="muted" id="emptyMsg" style="display:none">No teams found.</p>
+  </div>
+</div>
+
+<script>
+/* Paste the SAME firebaseConfig used in lean-waste-hunter.html */
+const firebaseConfig = {
+  apiKey: "AIzaSyB-JxyTNgvRfp9cRP0WFYFE3kypIcTWLl8",
+  authDomain: "treasure-hunt-game-1.firebaseapp.com",
+  projectId: "treasure-hunt-game-1",
+  storageBucket: "treasure-hunt-game-1.firebasestorage.app",
+  messagingSenderId: "694011928648",
+  appId: "1:694011928648:web:321e744fa70181ce1a387d"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const TEAMS_COL = "WasteHunterTeams";
+const ATTEMPTS_COL = "WasteHunterAttempts";
+
+let teams = [];
+let attemptsByTeam = {}; // teamName -> [attempts]
+let sortKey = "lastPlayedAt";
+let sortDir = -1;
+let expanded = {};
+
+function fmtDate(ts){
+  if(!ts) return "—";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+async function loadData(){
+  const errBox = document.getElementById("errBox");
+  errBox.classList.add("hidden");
+  try{
+    const teamsSnap = await db.collection(TEAMS_COL).get();
+    teams = teamsSnap.docs.map(d=>({ id: d.id, ...d.data() }));
+
+    const attemptsSnap = await db.collection(ATTEMPTS_COL).orderBy("date","desc").get();
+    attemptsByTeam = {};
+    attemptsSnap.docs.forEach(d=>{
+      const a = d.data();
+      const key = (a.teamName || "").toLowerCase();
+      if(!attemptsByTeam[key]) attemptsByTeam[key] = [];
+      attemptsByTeam[key].push(a);
+    });
+
+    renderStats();
+    renderTeams();
+  } catch(err){
+    console.error(err);
+    errBox.textContent = "Couldn't load data from Firestore. Check your connection and that the security rules allow read access. (" + err.message + ")";
+    errBox.classList.remove("hidden");
+  }
+}
+
+function renderStats(){
+  const totalTeams = teams.length;
+  const passedTeams = teams.filter(t=>t.passed).length;
+  const totalAttempts = teams.reduce((sum,t)=>sum+(t.attempts||0),0);
+  document.getElementById("statTeams").textContent = totalTeams;
+  document.getElementById("statPassed").textContent = passedTeams;
+  document.getElementById("statNotPassed").textContent = totalTeams - passedTeams;
+  document.getElementById("statAttempts").textContent = totalAttempts;
+}
+
+function setSort(key){
+  if(sortKey === key){ sortDir *= -1; } else { sortKey = key; sortDir = 1; }
+  renderTeams();
+}
+
+function renderTeams(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  let list = teams.filter(t => (t.teamName||"").toLowerCase().includes(q));
+
+  list.sort((a,b)=>{
+    let av = a[sortKey], bv = b[sortKey];
+    if(sortKey === "lastPlayedAt"){
+      av = av && av.toMillis ? av.toMillis() : 0;
+      bv = bv && bv.toMillis ? bv.toMillis() : 0;
+    }
+    if(typeof av === "string"){ av = av.toLowerCase(); bv = (bv||"").toLowerCase(); }
+    if(av < bv) return -1*sortDir;
+    if(av > bv) return 1*sortDir;
+    return 0;
+  });
+
+  const body = document.getElementById("teamsBody");
+  body.innerHTML = "";
+  document.getElementById("emptyMsg").style.display = list.length ? "none" : "block";
+
+  list.forEach(t=>{
+    const key = (t.teamName||"").toLowerCase();
+    const row = document.createElement("tr");
+    row.className = "team-row";
+    row.onclick = ()=>{ expanded[key] = !expanded[key]; renderTeams(); };
+    row.innerHTML = `
+      <td><b>${t.teamName||"(unnamed)"}</b></td>
+      <td>${t.attempts||0}</td>
+      <td>${t.bestScore||0} / 160</td>
+      <td><span class="pill ${t.passed?'pass':'fail'}">${t.passed?'PASSED':'NOT PASSED'}</span></td>
+      <td>${fmtDate(t.lastPlayedAt)}</td>
+    `;
+    body.appendChild(row);
+
+    if(expanded[key]){
+      const attempts = attemptsByTeam[key] || [];
+      const detailRow = document.createElement("tr");
+      detailRow.className = "attempts-row";
+      const inner = attempts.length
+        ? `<table><thead><tr><th>#</th><th>Score</th><th>Result</th><th>Date</th></tr></thead><tbody>
+           ${attempts.map(a=>`<tr><td>${a.attemptNumber||"—"}</td><td>${a.score}</td><td>${a.passed?'✅ Pass':'❌ Fail'}</td><td>${fmtDate(a.date)}</td></tr>`).join("")}
+           </tbody></table>`
+        : `<p class="muted">No individual attempt records found.</p>`;
+      detailRow.innerHTML = `<td colspan="5"><div class="attempts-inner">${inner}</div></td>`;
+      body.appendChild(detailRow);
+    }
+  });
+}
+
+function exportCsv(){
+  const rows = [["Team Name","Attempts","Best Score","Passed","Last Played"]];
+  teams.forEach(t=>{
+    rows.push([t.teamName||"", t.attempts||0, t.bestScore||0, t.passed?"Yes":"No", fmtDate(t.lastPlayedAt)]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "lean-waste-hunter-teams.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+loadData();
+</script>
+</body>
+</html>
