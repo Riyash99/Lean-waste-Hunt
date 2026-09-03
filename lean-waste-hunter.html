@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lean Waste Hunter — 8 Wastes Game</title>
+
+<!-- Firebase (compat, same style as your Quiz-game project) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+:root{--blue:#1261a0;--green:#2e8b57;--light:#f4f8fb;--dark:#17324d;--gold:#f2b84b;--red:#d9534f}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#eaf5ff,#effaf3);color:var(--dark)}
+.container{max-width:1050px;margin:auto;padding:28px 18px}.card{background:white;border-radius:20px;box-shadow:0 10px 30px rgba(23,50,77,.12);padding:28px}
+h1{margin:0 0 8px;font-size:38px}.subtitle{color:#587087;font-size:17px;margin-bottom:22px}
+.badges{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0 22px}.badge{background:#e9f4ff;border-radius:999px;padding:8px 13px;font-weight:bold;font-size:13px}
+button{border:0;border-radius:12px;padding:14px 18px;font-weight:bold;cursor:pointer;font-size:15px}
+button:disabled{opacity:.55;cursor:not-allowed}
+.primary{background:var(--blue);color:white}.secondary{background:#e8f5ed;color:#216b45}.restart{background:#eef1f4;color:#34495e}
+.start{text-align:center;padding:38px}.start h2{font-size:30px}.wastes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0}.waste{padding:14px;background:#f7fafc;border:1px solid #dbe6ef;border-radius:12px;font-size:13px}
+.hidden{display:none}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:20px}.progress{height:10px;background:#e5edf3;border-radius:99px;overflow:hidden}.bar{height:100%;background:linear-gradient(90deg,var(--blue),var(--green));width:0}
+.meta{font-weight:bold;color:#5e7285}.scenario{background:#f7fafc;border-left:6px solid var(--green);padding:22px;border-radius:12px;font-size:22px;line-height:1.4;margin:22px 0}
+.options{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.option{background:white;border:2px solid #dbe6ef;text-align:left;min-height:64px}.option:hover{border-color:var(--blue);background:#f5faff}.correct{border-color:#2e8b57!important;background:#eaf8f0!important}.wrong{border-color:var(--red)!important;background:#fff0ef!important}
+.feedback{margin-top:18px;padding:16px;border-radius:12px;display:none;line-height:1.5}.feedback.good{background:#eaf8f0;color:#205d3d}.feedback.bad{background:#fff0ef;color:#8d302d}
+.nextrow{display:flex;justify-content:flex-end;margin-top:18px}.score{font-size:22px;font-weight:bold}.result{text-align:center;padding:25px}.result .big{font-size:58px;font-weight:900;color:var(--blue)}.rank{font-size:24px;font-weight:bold;margin:10px}.review{text-align:left;margin-top:25px}.review div{padding:12px;border-bottom:1px solid #e6edf2}
+.pass{color:#205d3d}.fail{color:#8d302d}
+.reg{max-width:420px;margin:0 auto;text-align:left}
+.reg label{display:block;font-weight:bold;margin-bottom:6px}
+.reg input{width:100%;padding:12px 14px;border-radius:10px;border:2px solid #dbe6ef;font-size:16px;margin-bottom:14px}
+.reg-msg{margin-top:14px;padding:14px;border-radius:10px;display:none;line-height:1.5;text-align:left}
+.reg-msg.info{background:#e9f4ff;color:#134e78;display:block}
+.reg-msg.warn{background:#fff7e6;color:#8a5a00;display:block}
+.reg-msg.blocked{background:#fff0ef;color:#8d302d;display:block}
+.spinner{font-size:14px;color:#5e7285;margin-top:8px}
+@media(max-width:700px){.wastes{grid-template-columns:repeat(2,1fr)}.options{grid-template-columns:1fr}h1{font-size:30px}.scenario{font-size:18px}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="card">
+
+  <!-- TEAM REGISTRATION SCREEN -->
+  <div id="register" class="start">
+    <div style="font-size:58px">🔎🏭</div>
+    <h1>LEAN WASTE HUNTER</h1>
+    <div class="subtitle">Spot the waste. Think Lean. Improve the process.</div>
+    <div class="reg">
+      <label for="teamName">Team Name</label>
+      <input type="text" id="teamName" placeholder="e.g. Line 3 Champions" autocomplete="off">
+      <button class="primary" style="width:100%" onclick="registerTeam()">REGISTER &amp; CONTINUE</button>
+      <div id="regMsg" class="reg-msg"></div>
+      <div id="regSpinner" class="spinner hidden">Checking team record…</div>
+    </div>
+  </div>
+
+  <!-- START / RULES SCREEN -->
+  <div id="start" class="start hidden">
+    <div style="font-size:58px">🔎🏭</div>
+    <h1>LEAN WASTE HUNTER</h1>
+    <div class="subtitle">Spot the waste. Think Lean. Improve the process.</div>
+    <p>Team: <b id="teamLabel"></b> &nbsp;|&nbsp; Attempts so far: <b id="attemptLabel"></b></p>
+    <p>16 questions, 10 points each (160 max). Score <b>more than 100</b> to pass. If your team doesn't pass, you can try again.</p>
+    <div class="wastes">
+      <div class="waste">❌ <b>Defects</b></div><div class="waste">📦 <b>Overproduction</b></div>
+      <div class="waste">⏳ <b>Waiting</b></div><div class="waste">💡 <b>Non-utilized Talent</b></div>
+      <div class="waste">🚚 <b>Transportation</b></div><div class="waste">📚 <b>Inventory</b></div>
+      <div class="waste">🚶 <b>Motion</b></div><div class="waste">⚙️ <b>Extra Processing</b></div>
+    </div>
+    <button class="primary" onclick="startGame()">START GAME ▶️</button>
+    <button class="restart" onclick="backToRegister()">SWITCH TEAM</button>
+  </div>
+
+  <div id="game" class="hidden">
+    <div class="top">
+      <div><div class="meta" id="qnum"></div><div class="progress"><div class="bar" id="bar"></div></div></div>
+      <div class="score">Score: <span id="score">0</span></div>
+    </div>
+    <div class="scenario" id="scenario"></div>
+    <div class="options" id="options"></div>
+    <div id="feedback" class="feedback"></div>
+    <div class="nextrow"><button id="next" class="primary hidden" onclick="nextQuestion()">NEXT →</button></div>
+  </div>
+
+  <div id="result" class="result hidden">
+    <div style="font-size:55px" id="resultIcon">🏆</div>
+    <h1 id="resultTitle">GAME COMPLETE!</h1>
+    <div class="big" id="finalScore"></div>
+    <div class="rank" id="rank"></div>
+    <p id="resultText"></p>
+    <p>Attempts used by <b id="teamLabel2"></b>: <b id="attemptLabel2"></b></p>
+    <button class="primary hidden" id="retryBtn" onclick="startGame()">TRY AGAIN</button>
+    <button class="restart" onclick="backToRegister()">SWITCH TEAM</button>
+    <div class="review"><h2>Learning Review</h2><div id="reviewList"></div></div>
+  </div>
+</div>
+</div>
+
+<script>
+/* =========================================================
+   FIREBASE SETUP
+   Paste the SAME firebaseConfig object you used for your
+   Quiz-game project (Project settings > General > Your apps
+   in the Firebase console). This game uses two NEW
+   collections so it won't touch your existing Questions/
+   Results data: "WasteHunterTeams" and "WasteHunterAttempts".
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyB-JxyTNgvRfp9cRP0WFYFE3kypIcTWLl8",
+  authDomain: "treasure-hunt-game-1.firebaseapp.com",
+  projectId: "treasure-hunt-game-1",
+  storageBucket: "treasure-hunt-game-1.firebasestorage.app",
+  messagingSenderId: "694011928648",
+  appId: "1:694011928648:web:321e744fa70181ce1a387d"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const TEAMS_COL = "WasteHunterTeams";       // one doc per team: {teamName, attempts, bestScore, passed}
+const ATTEMPTS_COL = "WasteHunterAttempts"; // one doc per attempt: {teamName, score, passed, date}
+
+const PASS_SCORE = 100; // strictly greater than this to pass
+const POINTS_PER_Q = 10;
+
+const questions=[
+{q:"A production line makes 12,000 gloves even though the confirmed customer requirement is only 10,000 gloves.",a:"Overproduction",e:"Producing more than the customer or downstream process needs creates excess stock and can hide problems."},
+{q:"An operator walks repeatedly to another section to collect scissors, gauges and other tools because they are not kept at the workstation.",a:"Motion",e:"Unnecessary movement by people is Motion waste. Point-of-use storage can reduce it."},
+{q:"A batch of gloves is rejected at final inspection because of pinholes and must be reworked.",a:"Defects",e:"Defects create scrap, rework, additional inspection and lost production time."},
+{q:"A machine is ready to run, but the operator waits 25 minutes because the required compound has not arrived.",a:"Waiting",e:"Idle time caused by missing materials, information, people or equipment is Waiting waste."},
+{q:"Semi-finished gloves are moved from one trolley to a temporary area, then to another trolley, and finally to the next process.",a:"Transportation",e:"Unnecessary movement of materials or products is Transportation waste."},
+{q:"The factory stores several months of excess WIP because production continues to build batches before the next process is ready.",a:"Inventory",e:"Excess raw material, WIP or finished goods tie up cash and can hide process problems."},
+{q:"Operators have identified a faster way to change a process, but their ideas are never requested or considered.",a:"Non-utilized Talent",e:"Failing to use employees' knowledge, creativity and problem-solving ability is a form of waste."},
+{q:"An operator records the same production information on three separate forms even though one standardized digital record would satisfy the requirement.",a:"Extra Processing",e:"Doing work beyond what is required by the customer or process is Extra Processing."},
+{q:"A dye batch is produced and packed before the next process has confirmed its capacity, so the packed batches remain in the holding area.",a:"Overproduction",e:"Producing earlier than needed is also Overproduction, even if the total quantity is eventually required."},
+{q:"A technician spends 10 minutes searching through an unorganized drawer to find the correct spare part.",a:"Motion",e:"Searching and unnecessary physical movement are Motion waste. 5S and visual management can help."},
+{q:"A production team waits for QA approval before releasing a batch because the inspection queue is too long.",a:"Waiting",e:"The production team's idle time caused by an approval bottleneck is Waiting waste."},
+{q:"A warehouse keeps 40 boxes of gloves at a workstation 'just in case', although the line normally needs only 10 boxes.",a:"Inventory",e:"Excess material at the point of use is Inventory waste and may also create handling issues."},
+{q:"A supervisor notices repeated shortfalls but does not involve experienced operators who understand the process variation.",a:"Non-utilized Talent",e:"Ignoring frontline knowledge wastes the problem-solving capability of employees."},
+{q:"A finished batch is sent through an additional inspection step that does not improve quality and is not required by the specification.",a:"Extra Processing",e:"Unnecessary inspection or processing beyond the required standard is Extra Processing."},
+{q:"A carton of gloves is opened and repacked because the original packing label was printed incorrectly.",a:"Defects",e:"An incorrect label is a defect that causes rework and additional handling."},
+{q:"Raw materials are transported 300 metres to a store, then later transported back 300 metres because the store location is far from the process.",a:"Transportation",e:"Repeated or excessive material movement adds no customer value."}
+];
+
+const wasteOptions=["Defects","Overproduction","Waiting","Non-utilized Talent","Transportation","Inventory","Motion","Extra Processing"];
+
+let current=0, score=0, answers=[];
+let teamName="", teamDocId="", teamAttempts=0, teamPassed=false;
+
+/* ---------- helpers ---------- */
+function normTeamName(name){ return name.trim(); }
+function teamKey(name){ return normTeamName(name).toLowerCase(); } // used as the doc ID so names are case-insensitive
+
+/* ---------- registration ---------- */
+async function registerTeam(){
+  const raw = document.getElementById("teamName").value;
+  const name = normTeamName(raw);
+  const msg = document.getElementById("regMsg");
+  const spinner = document.getElementById("regSpinner");
+  msg.className = "reg-msg"; msg.style.display="none"; msg.textContent="";
+
+  if(!name){
+    msg.className = "reg-msg blocked";
+    msg.textContent = "Please enter your team name.";
+    return;
+  }
+
+  spinner.classList.remove("hidden");
+  try{
+    const id = teamKey(name);
+    const ref = db.collection(TEAMS_COL).doc(id);
+    const snap = await ref.get();
+
+    if(snap.exists){
+      const data = snap.data();
+      teamAttempts = data.attempts || 0;
+      teamPassed = !!data.passed;
+      teamName = data.teamName || name;
+    } else {
+      await ref.set({ teamName: name, attempts: 0, bestScore: 0, passed: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      teamAttempts = 0;
+      teamPassed = false;
+      teamName = name;
+    }
+    teamDocId = id;
+
+    spinner.classList.add("hidden");
+
+    if(teamPassed){
+      msg.className = "reg-msg info";
+      msg.textContent = `Team "${teamName}" already passed this game after ${teamAttempts} attempt(s). You can still replay for practice.`;
+    } else if(teamAttempts > 0){
+      msg.className = "reg-msg warn";
+      msg.textContent = `Welcome back, "${teamName}". You've used ${teamAttempts} attempt(s) so far and haven't passed yet — give it another go!`;
+    }
+
+    document.getElementById("teamLabel").textContent = teamName;
+    document.getElementById("attemptLabel").textContent = teamAttempts;
+    document.getElementById("register").classList.add("hidden");
+    document.getElementById("start").classList.remove("hidden");
+  } catch(err){
+    spinner.classList.add("hidden");
+    msg.className = "reg-msg blocked";
+    msg.textContent = "Couldn't reach the server to register your team. Check your internet connection and try again. (" + err.message + ")";
+    console.error(err);
+  }
+}
+
+function backToRegister(){
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("start").classList.add("hidden");
+  document.getElementById("register").classList.remove("hidden");
+  document.getElementById("teamName").value = "";
+}
+
+/* ---------- game flow ---------- */
+function startGame(){
+  current=0; score=0; answers=[];
+  document.getElementById("start").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  loadQuestion();
+}
+
+function loadQuestion(){
+  const x=questions[current];
+  document.getElementById("qnum").textContent=`Question ${current+1} of ${questions.length}`;
+  document.getElementById("bar").style.width=((current)/questions.length*100)+"%";
+  document.getElementById("score").textContent=score;
+  document.getElementById("scenario").textContent=x.q;
+  const box=document.getElementById("options"); box.innerHTML="";
+  wasteOptions.forEach(w=>{
+    const b=document.createElement("button"); b.className="option"; b.textContent=w;
+    b.onclick=()=>answer(w,b); box.appendChild(b);
+  });
+  document.getElementById("feedback").style.display="none";
+  document.getElementById("next").classList.add("hidden");
+}
+
+function answer(choice,btn){
+  const x=questions[current];
+  document.querySelectorAll(".option").forEach(b=>b.disabled=true);
+  if(choice===x.a){
+    score+=POINTS_PER_Q; btn.classList.add("correct"); showFeedback(true,x.e);
+  } else {
+    btn.classList.add("wrong");
+    document.querySelectorAll(".option").forEach(b=>{if(b.textContent===x.a)b.classList.add("correct")});
+    showFeedback(false,`Correct answer: ${x.a}. ${x.e}`);
+  }
+  answers.push({q:x.q,chosen:choice,correct:x.a,ok:choice===x.a});
+  document.getElementById("score").textContent=score;
+  document.getElementById("next").classList.remove("hidden");
+}
+
+function showFeedback(good,text){
+  const f=document.getElementById("feedback"); f.className="feedback "+(good?"good":"bad");
+  f.innerHTML=(good?"<b>✅ Correct!</b> ":"<b>❌ Not quite.</b> ")+text; f.style.display="block";
+}
+
+function nextQuestion(){
+  current++;
+  if(current<questions.length) loadQuestion(); else finish();
+}
+
+async function finish(){
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+
+  const passed = score > PASS_SCORE;
+  const maxScore = questions.length * POINTS_PER_Q;
+
+  document.getElementById("finalScore").textContent=score+" / "+maxScore;
+  document.getElementById("resultIcon").textContent = passed ? "🏆" : "🚧";
+  document.getElementById("resultTitle").textContent = passed ? "PASSED!" : "NOT PASSED YET";
+
+  const rankEl = document.getElementById("rank");
+  rankEl.textContent = passed ? "LEAN WASTE HUNTER — PASS ✅" : "KEEP HUNTING — RETRY NEEDED 🚀";
+  rankEl.className = "rank " + (passed ? "pass" : "fail");
+
+  document.getElementById("resultText").textContent = passed
+    ? "Great job! Your team scored above 100 and passed the Lean Waste Hunter challenge."
+    : `Your team needs more than ${PASS_SCORE} points to pass (you scored ${score}). Review the answers below and try again.`;
+
+  document.getElementById("reviewList").innerHTML = answers.map((x,i)=>`<div><b>${i+1}. ${x.ok?"✅":"❌"} ${x.correct}</b><br><small>${x.q}</small></div>`).join("");
+
+  // Save this attempt and update the team's record in Firestore
+  try{
+    teamAttempts += 1;
+    teamPassed = teamPassed || passed;
+
+    const teamRef = db.collection(TEAMS_COL).doc(teamDocId);
+    const snap = await teamRef.get();
+    const currentBest = (snap.data() && snap.data().bestScore) || 0;
+    const newBest = Math.max(score, currentBest);
+
+    await teamRef.update({
+      attempts: teamAttempts,
+      bestScore: newBest,
+      passed: teamPassed,
+      lastPlayedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    await db.collection(ATTEMPTS_COL).add({
+      teamName: teamName,
+      score: score,
+      passed: passed,
+      attemptNumber: teamAttempts,
+      date: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(err){
+    console.error("Could not save attempt:", err);
+  }
+
+  document.getElementById("teamLabel2").textContent = teamName;
+  document.getElementById("attemptLabel2").textContent = teamAttempts;
+  document.getElementById("retryBtn").classList.toggle("hidden", passed);
+}
+</script>
+</body>
+</html>
