@@ -14,6 +14,8 @@
 *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#eaf5ff,#effaf3);color:var(--dark)}
 .container{max-width:1050px;margin:auto;padding:28px 18px}.card{background:white;border-radius:20px;box-shadow:0 10px 30px rgba(23,50,77,.12);padding:28px}
 h1{margin:0 0 8px;font-size:38px}.subtitle{color:#587087;font-size:17px;margin-bottom:22px}
+.si-text{font-family:'Noto Sans Sinhala','Iskoola Pota',system-ui,sans-serif}
+.intro-si{color:#587087;font-size:15px;margin-bottom:6px}
 .badges{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0 22px}.badge{background:#e9f4ff;border-radius:999px;padding:8px 13px;font-weight:bold;font-size:13px}
 button{border:0;border-radius:12px;padding:14px 18px;font-weight:bold;cursor:pointer;font-size:15px}
 button:disabled{opacity:.55;cursor:not-allowed}
@@ -21,6 +23,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .start{text-align:center;padding:38px}.start h2{font-size:30px}.wastes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0}.waste{padding:14px;background:#f7fafc;border:1px solid #dbe6ef;border-radius:12px;font-size:13px}
 .hidden{display:none}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:20px}.progress{height:10px;background:#e5edf3;border-radius:99px;overflow:hidden}.bar{height:100%;background:linear-gradient(90deg,var(--blue),var(--green));width:0}
 .meta{font-weight:bold;color:#5e7285}.scenario{background:#f7fafc;border-left:6px solid var(--green);padding:22px;border-radius:12px;font-size:22px;line-height:1.4;margin:22px 0}
+.scenario-si{margin-top:14px;padding-top:14px;border-top:1px dashed #cfe0ea;font-size:18px;color:#2f4a63}
 .options{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.option{background:white;border:2px solid #dbe6ef;text-align:left;min-height:64px}.option:hover{border-color:var(--blue);background:#f5faff}.correct{border-color:#2e8b57!important;background:#eaf8f0!important}.wrong{border-color:var(--red)!important;background:#fff0ef!important}
 .feedback{margin-top:18px;padding:16px;border-radius:12px;display:none;line-height:1.5}.feedback.good{background:#eaf8f0;color:#205d3d}.feedback.bad{background:#fff0ef;color:#8d302d}
 .nextrow{display:flex;justify-content:flex-end;margin-top:18px}.score{font-size:22px;font-weight:bold}.result{text-align:center;padding:25px}.result .big{font-size:58px;font-weight:900;color:var(--blue)}.rank{font-size:24px;font-weight:bold;margin:10px}.review{text-align:left;margin-top:25px}.review div{padding:12px;border-bottom:1px solid #e6edf2}
@@ -59,6 +62,8 @@ button:disabled{opacity:.55;cursor:not-allowed}
     <div style="font-size:58px">🔎🏭</div>
     <h1>LEAN WASTE HUNTER</h1>
     <div class="subtitle">Spot the waste. Think Lean. Improve the process.</div>
+    <p>This interactive game uses realistic manufacturing situations, including glove-production examples. Identify which of the <b>8 Lean wastes</b> is hiding in each scenario.</p>
+    <p class="intro-si si-text">මෙය සැබෑ නිෂ්පාදන අවස්ථා සහ අත්ආවරණ (gloves) නිෂ්පාදන උදාහරණ ඇසුරින් සකස් කල අන්තර්ක්‍රියාකාරී ක්‍රීඩාවකි. ඔබේ අභියෝගය: එක් එක් අවස්ථාව පිටුපස සැඟවී ඇති Lean Waste වර්ග 8 න් කුමන නාස්තියදැයි හදුනා ගන්න!</p>
     <p>Team: <b id="teamLabel"></b> &nbsp;|&nbsp; Attempts so far: <b id="attemptLabel"></b></p>
     <p>16 questions, 10 points each (160 max). Score <b>more than 100</b> to pass. If your team doesn't pass, you can try again.</p>
     <div class="wastes">
@@ -123,22 +128,22 @@ const PASS_SCORE = 100; // strictly greater than this to pass
 const POINTS_PER_Q = 10;
 
 const questions=[
-{q:"A production line makes 12,000 gloves even though the confirmed customer requirement is only 10,000 gloves.",a:"Overproduction",e:"Producing more than the customer or downstream process needs creates excess stock and can hide problems."},
-{q:"An operator walks repeatedly to another section to collect scissors, gauges and other tools because they are not kept at the workstation.",a:"Motion",e:"Unnecessary movement by people is Motion waste. Point-of-use storage can reduce it."},
-{q:"A batch of gloves is rejected at final inspection because of pinholes and must be reworked.",a:"Defects",e:"Defects create scrap, rework, additional inspection and lost production time."},
-{q:"A machine is ready to run, but the operator waits 25 minutes because the required compound has not arrived.",a:"Waiting",e:"Idle time caused by missing materials, information, people or equipment is Waiting waste."},
-{q:"Semi-finished gloves are moved from one trolley to a temporary area, then to another trolley, and finally to the next process.",a:"Transportation",e:"Unnecessary movement of materials or products is Transportation waste."},
-{q:"The factory stores several months of excess WIP because production continues to build batches before the next process is ready.",a:"Inventory",e:"Excess raw material, WIP or finished goods tie up cash and can hide process problems."},
-{q:"Operators have identified a faster way to change a process, but their ideas are never requested or considered.",a:"Non-utilized Talent",e:"Failing to use employees' knowledge, creativity and problem-solving ability is a form of waste."},
-{q:"An operator records the same production information on three separate forms even though one standardized digital record would satisfy the requirement.",a:"Extra Processing",e:"Doing work beyond what is required by the customer or process is Extra Processing."},
-{q:"A dye batch is produced and packed before the next process has confirmed its capacity, so the packed batches remain in the holding area.",a:"Overproduction",e:"Producing earlier than needed is also Overproduction, even if the total quantity is eventually required."},
-{q:"A technician spends 10 minutes searching through an unorganized drawer to find the correct spare part.",a:"Motion",e:"Searching and unnecessary physical movement are Motion waste. 5S and visual management can help."},
-{q:"A production team waits for QA approval before releasing a batch because the inspection queue is too long.",a:"Waiting",e:"The production team's idle time caused by an approval bottleneck is Waiting waste."},
-{q:"A warehouse keeps 40 boxes of gloves at a workstation 'just in case', although the line normally needs only 10 boxes.",a:"Inventory",e:"Excess material at the point of use is Inventory waste and may also create handling issues."},
-{q:"A supervisor notices repeated shortfalls but does not involve experienced operators who understand the process variation.",a:"Non-utilized Talent",e:"Ignoring frontline knowledge wastes the problem-solving capability of employees."},
-{q:"A finished batch is sent through an additional inspection step that does not improve quality and is not required by the specification.",a:"Extra Processing",e:"Unnecessary inspection or processing beyond the required standard is Extra Processing."},
-{q:"A carton of gloves is opened and repacked because the original packing label was printed incorrectly.",a:"Defects",e:"An incorrect label is a defect that causes rework and additional handling."},
-{q:"Raw materials are transported 300 metres to a store, then later transported back 300 metres because the store location is far from the process.",a:"Transportation",e:"Repeated or excessive material movement adds no customer value."}
+{q:"A production line makes 12,000 gloves even though the confirmed customer requirement is only 10,000 gloves.",si:"පාරිභෝගිකයාට අවශ්‍ය බව තහවුරු කර ඇත්තේ අත්වැසුම් 10,000 පමණක් වුවද, නිෂ්පාදන ක්‍රියාවලියේදී අත්වැසුම් 12,000 ක් නිෂ්පාදනය කර ඇත.",a:"Overproduction",e:"Producing more than the customer or downstream process needs creates excess stock and can hide problems."},
+{q:"An operator walks repeatedly to another section to collect scissors, gauges and other tools because they are not kept at the workstation.",si:"වැඩපලේ අවශ්‍ය උපකරණ නොමැති නිසා, සේවකයාට කතුරු, මිනුම් උපකරණ සහ වෙනත් මෙවලම් ගෙන ඒම සදහා නැවත නැවතත් වෙනත් අංශයකට යාමට සිදුවේ.",a:"Motion",e:"Unnecessary movement by people is Motion waste. Point-of-use storage can reduce it."},
+{q:"A batch of gloves is rejected at final inspection because of pinholes and must be reworked.",si:"අත්වැසුම් තොගයක කුඩා සිදුරු (pinholes) තිබීම නිසා අවසාන පරික්ෂාවේදී ඒවා ප්‍රතික්ෂේප වී, නැවත සකස් කිරීමට සිදුවේ.",a:"Defects",e:"Defects create scrap, rework, additional inspection and lost production time."},
+{q:"A machine is ready to run, but the operator waits 25 minutes because the required compound has not arrived.",si:"යන්ත්‍රය ක්‍රියාත්මක කිරීමට සූදානම්ව තිබුණද, අවශ්‍ය compound ද්‍රව්‍යය තවමත් පැමිණ නොමැති බැවින් ක්‍රියාකරු විනාඩි 25ක් බලා සිටී.",a:"Waiting",e:"Idle time caused by missing materials, information, people or equipment is Waiting waste."},
+{q:"Semi-finished gloves are moved from one trolley to a temporary area, then to another trolley, and finally to the next process.",si:"අර්ධ නිමි අත්වැසුම් (Semi-finished gloves) එක් ට්‍රොලියකින් තාවකාලික ස්ථානයකටත්, එතනින් තවත් ට්‍රොලියකටත් ගෙන ගොස් අවසානයේ ඊළඟ නිෂ්පාදන ක්‍රියාවලියට යොමු කරයි.",a:"Transportation",e:"Unnecessary movement of materials or products is Transportation waste."},
+{q:"The factory stores several months of excess WIP because production continues to build batches before the next process is ready.",si:"ඊලග ක්‍රියාවලියට සුදානම් වීමට පෙරත් නිෂ්පාදනය අඛණ්ඩව සිදු කරන නිසා, කර්මාන්තශාලාවේ මාස කිහිපයකට සරිලන අතිරික්ත WIP තොගයක් ගබඩා කර ඇත.",a:"Inventory",e:"Excess raw material, WIP or finished goods tie up cash and can hide process problems."},
+{q:"Operators have identified a faster way to change a process, but their ideas are never requested or considered.",si:"ක්‍රියාවලිය වේගවත් කල හැකි ක්‍රම සේවකයන් හදුනාගෙන තිබුනත්, ඔවුන්ගේ අදහස් විමසීමකින් හෝ සලක බැලීමක් සිදු නොවේ.",a:"Non-utilized Talent",e:"Failing to use employees' knowledge, creativity and problem-solving ability is a form of waste."},
+{q:"An operator records the same production information on three separate forms even though one standardized digital record would satisfy the requirement.",si:"එක් ප්‍රමිතිගත ඩිජිටල් වාර්තාවක් මඟින් අවශ්‍යතාවය සපුරාලිය හැකි වුවද, ක්‍රියාකරුවෙකු එකම නිෂ්පාදන තොරතුරු වෙනම ආකෘති (Forms) තුනක නැවත නැවතත් සටහන් කරයි.",a:"Extra Processing",e:"Doing work beyond what is required by the customer or process is Extra Processing."},
+{q:"A dye batch is produced and packed before the next process has confirmed its capacity, so the packed batches remain in the holding area.",si:"ඊළඟ ක්‍රියාවලිය තම ධාරිතාව තහවුරු කිරීමට පෙර dye batch එකක් නිෂ්පාදනය කර ඇසුරුම් කරනු ලබයි. එම නිසා ඇසුරුම් කළ කාණ්ඩ holding area එකේ රැඳී පවතී.",a:"Overproduction",e:"Producing earlier than needed is also Overproduction, even if the total quantity is eventually required."},
+{q:"A technician spends 10 minutes searching through an unorganized drawer to find the correct spare part.",si:"අවිධිමත් ලෙස සකස් කල ඇති ලාච්චුවක් තුළින් නිවැරදි අමතර කොටස් (spare part) සොයා ගැනීමට තාක්ෂණික ශිල්පියෙකු විනාඩි 10ක් ගත කරයි.",a:"Motion",e:"Searching and unnecessary physical movement are Motion waste. 5S and visual management can help."},
+{q:"A production team waits for QA approval before releasing a batch because the inspection queue is too long.",si:"පරීක්ෂණයට රැදී ඇති තොගය වැඩි වීම නිසා, QA අනුමැතිය ලැබෙන තෙක් නිෂ්පාදන කණ්ඩායමට batch එක නිකුත් කිරීමට බලා සිටීමට සිදුවේ.",a:"Waiting",e:"The production team's idle time caused by an approval bottleneck is Waiting waste."},
+{q:"A warehouse keeps 40 boxes of gloves at a workstation 'just in case', although the line normally needs only 10 boxes.",si:"නිෂ්පාදන රේඛාවට සාමාන්‍යයෙන් අවශ්‍ය වන්නේ අත්වැසුම් පෙට්ටි 10ක් පමණක් වුවද, \u201cඅවශ්‍ය විය හැකිය\u201d යන අදහසින් වැඩපොළේ අත්වැසුම් පෙට්ටි 40ක් තබා ඇත.",a:"Inventory",e:"Excess material at the point of use is Inventory waste and may also create handling issues."},
+{q:"A supervisor notices repeated shortfalls but does not involve experienced operators who understand the process variation.",si:"අධීක්ෂකවරයෙකු නැවත නැවතත් සිදුවන shortfalls හඳුනාගෙන තිබුණද, ක්‍රියාවලියේ වෙනස්වීම් පිළිබඳ හොඳ අවබෝධයක් ඇති පළපුරුදු ක්‍රියාකරුවන්ගේ සහභාගීත්වය ලබා නොගනී.",a:"Non-utilized Talent",e:"Ignoring frontline knowledge wastes the problem-solving capability of employees."},
+{q:"A finished batch is sent through an additional inspection step that does not improve quality and is not required by the specification.",si:"නිෂ්පාදනයේ ගුණාත්මකභාවය වැඩිදියුණු නොකරන සහ නිර්දේශිත ප්‍රමිතීන්ට අනුගත (Specification) නොවන අමතර පරීක්ෂණ පියවරක් සඳහා නිමි කාණ්ඩයක් යවනු ලැබේ.",a:"Extra Processing",e:"Unnecessary inspection or processing beyond the required standard is Extra Processing."},
+{q:"A carton of gloves is opened and repacked because the original packing label was printed incorrectly.",si:"මුල් ඇසුරුම් ලේබලය වැරදි ලෙස මුද්‍රණය වී ඇති බැවින්, අත්වැසුම් පෙට්ටියක් විවෘත කර නැවත ඇසුරුම් කරනු ලැබේ.",a:"Defects",e:"An incorrect label is a defect that causes rework and additional handling."},
+{q:"Raw materials are transported 300 metres to a store, then later transported back 300 metres because the store location is far from the process.",si:"ක්‍රියාවලියට අවශ්‍ය අමුද්‍රව්‍ය, ක්‍රියාවලි ස්ථානයෙන් මීටර් 300 දුරින් පිහිටි ගබඩාවට ප්‍රවාහනය කරයි. පසුව ඒවා නැවත ක්‍රියාවලි ස්ථානයට මීටර් 300 ක් ආපසු ගෙන ඒමට සිදුවේ.",a:"Transportation",e:"Repeated or excessive material movement adds no customer value."}
 ];
 
 const wasteOptions=["Defects","Overproduction","Waiting","Non-utilized Talent","Transportation","Inventory","Motion","Extra Processing"];
@@ -226,7 +231,7 @@ function loadQuestion(){
   document.getElementById("qnum").textContent=`Question ${current+1} of ${questions.length}`;
   document.getElementById("bar").style.width=((current)/questions.length*100)+"%";
   document.getElementById("score").textContent=score;
-  document.getElementById("scenario").textContent=x.q;
+  document.getElementById("scenario").innerHTML = x.q + (x.si ? `<div class="scenario-si si-text">${x.si}</div>` : "");
   const box=document.getElementById("options"); box.innerHTML="";
   wasteOptions.forEach(w=>{
     const b=document.createElement("button"); b.className="option"; b.textContent=w;
